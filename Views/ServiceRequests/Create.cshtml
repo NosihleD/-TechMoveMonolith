@@ -1,0 +1,21 @@
+@model ServiceRequestCreateViewModel
+@{ ViewData["Title"] = "Create Service Request"; }
+<h1>Create Service Request</h1>
+<p class="info">The page consumes a live USD→ZAR exchange rate using HttpClient. The rate and calculated ZAR cost are saved with the request.</p>
+@if(ViewBag.CurrencyError != null){<div class="error">@ViewBag.CurrencyError</div>}
+<form asp-action="Create" method="post" class="form">
+    <div asp-validation-summary="ModelOnly" class="error"></div>
+    <label asp-for="ContractId"></label><select asp-for="ContractId" asp-items="Model.Contracts"><option value="">-- Select eligible contract --</option></select><span asp-validation-for="ContractId" class="error"></span>
+    <label asp-for="Description"></label><textarea asp-for="Description" rows="4"></textarea><span asp-validation-for="Description" class="error"></span>
+    <label asp-for="CostUsd"></label><input asp-for="CostUsd" type="number" step="0.01" min="0.01" id="usd" /><span asp-validation-for="CostUsd" class="error"></span>
+    <label asp-for="ExchangeRate"></label><input asp-for="ExchangeRate" readonly id="rate" />
+    <label asp-for="CostZar"></label><input asp-for="CostZar" readonly id="zar" />
+    <button class="btn" type="submit">Save Service Request</button> <a asp-action="Index">Cancel</a>
+</form>
+@section Scripts {
+<script>
+const usd = document.getElementById('usd'), rate = document.getElementById('rate'), zar = document.getElementById('zar');
+function calc(){ const u=parseFloat(usd.value)||0, r=parseFloat(rate.value)||0; zar.value=(u*r).toFixed(2); }
+usd.addEventListener('input', calc); calc();
+</script>
+}

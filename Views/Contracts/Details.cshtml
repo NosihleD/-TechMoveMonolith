@@ -1,0 +1,7 @@
+@model Contract
+@{ ViewData["Title"] = "Contract Details"; }
+<h1>Contract #@Model.ContractId</h1>
+<div class="detail"><p><strong>Client:</strong> @Model.Client?.Name</p><p><strong>Dates:</strong> @Model.StartDate.ToString("dd MMM yyyy") to @Model.EndDate.ToString("dd MMM yyyy")</p><p><strong>Status:</strong> @Model.Status</p><p><strong>Service Level:</strong> @Model.ServiceLevel</p><p><strong>Agreement:</strong> @if(Model.SignedAgreementPath != null){<a asp-action="DownloadAgreement" asp-route-id="@Model.ContractId">Download signed agreement</a>} else {<span>Not uploaded</span>}</p></div>
+<h2>Service Requests</h2>
+@if (!Model.ServiceRequests.Any()) { <p>No service requests yet.</p> } else { <table><thead><tr><th>Description</th><th>USD</th><th>Rate</th><th>ZAR</th><th>Status</th></tr></thead><tbody>@foreach(var s in Model.ServiceRequests){<tr><td>@s.Description</td><td>$@s.CostUsd.ToString("N2")</td><td>@s.ExchangeRate.ToString("N4")</td><td>R@s.CostZar.ToString("N2")</td><td>@s.Status</td></tr>}</tbody></table> }
+<a class="btn" asp-controller="ServiceRequests" asp-action="Create">Create Service Request</a>

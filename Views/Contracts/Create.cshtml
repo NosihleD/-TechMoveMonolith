@@ -1,0 +1,13 @@
+@model Contract
+@{ ViewData["Title"] = "Create Contract"; }
+<h1>Create Contract</h1>
+<form asp-action="Create" method="post" enctype="multipart/form-data" class="form">
+    <div asp-validation-summary="ModelOnly" class="error"></div>
+    <label asp-for="ClientId"></label><select asp-for="ClientId" asp-items="ViewBag.Clients"><option value="">-- Select Client --</option></select><span asp-validation-for="ClientId" class="error"></span>
+    <label asp-for="StartDate"></label><input asp-for="StartDate" type="date" /><span asp-validation-for="StartDate" class="error"></span>
+    <label asp-for="EndDate"></label><input asp-for="EndDate" type="date" /><span asp-validation-for="EndDate" class="error"></span>
+    <label asp-for="Status"></label><select asp-for="Status"><option>Draft</option><option>Active</option><option>Expired</option><option>On Hold</option></select>
+    <label asp-for="ServiceLevel"></label><input asp-for="ServiceLevel" placeholder="e.g. Gold / 24x7" /><span asp-validation-for="ServiceLevel" class="error"></span>
+    <label for="signedAgreement">Signed Agreement (PDF only, max 10 MB)</label><input id="signedAgreement" name="signedAgreement" type="file" accept="application/pdf,.pdf" />
+    <button class="btn" type="submit">Save Contract</button> <a asp-action="Index">Cancel</a>
+</form>

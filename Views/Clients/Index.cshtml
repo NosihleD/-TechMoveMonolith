@@ -1,0 +1,6 @@
+@model IEnumerable<Client>
+@{ ViewData["Title"] = "Clients"; }
+<div class="page-head"><div><h1>Clients</h1><p>Manage TechMove clients.</p></div><a class="btn" asp-action="Create">+ New Client</a></div>
+<table><thead><tr><th>Name</th><th>Contact Details</th><th>Region</th><th>Contracts</th></tr></thead><tbody>
+@foreach (var c in Model) { <tr><td>@c.Name</td><td>@c.ContactDetails</td><td>@c.Region</td><td>@c.Contracts.Count</td></tr> }
+</tbody></table>

@@ -1,0 +1,6 @@
+@model IEnumerable<ServiceRequest>
+@{ ViewData["Title"] = "Service Requests"; }
+<div class="page-head"><div><h1>Service Requests</h1><p>USD costs are stored with the exchange rate and calculated ZAR value.</p></div><a class="btn" asp-action="Create">+ New Service Request</a></div>
+<table><thead><tr><th>Client / Contract</th><th>Description</th><th>USD</th><th>Rate</th><th>ZAR</th><th>Status</th></tr></thead><tbody>
+@foreach(var s in Model){<tr><td>@s.Contract?.Client?.Name<br/><small>Contract #@s.ContractId</small></td><td>@s.Description</td><td>$@s.CostUsd.ToString("N2")</td><td>@s.ExchangeRate.ToString("N4")</td><td>R@s.CostZar.ToString("N2")</td><td>@s.Status</td></tr>}
+</tbody></table>

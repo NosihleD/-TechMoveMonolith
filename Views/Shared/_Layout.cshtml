@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - TechMove</title>
+    <link rel="stylesheet" href="~/css/site.css" />
+</head>
+<body>
+<header>
+<nav class="nav">
+    <a class="brand" asp-controller="Home" asp-action="Index">TechMove</a>
+    <a asp-controller="Clients" asp-action="Index">Clients</a>
+    <a asp-controller="Contracts" asp-action="Index">Contracts</a>
+    <a asp-controller="ServiceRequests" asp-action="Index">Service Requests</a>
+</nav>
+</header>
+<main class="container">
+    @RenderBody()
+</main>
+<footer class="footer">TechMove Monolith Prototype — ASP.NET Core MVC + EF Core</footer>
+@RenderSection("Scripts", required: false)
+</body>
+</html>

@@ -1,0 +1,12 @@
+@model ContractIndexViewModel
+@{ ViewData["Title"] = "Contracts"; }
+<div class="page-head"><div><h1>Contracts</h1><p>Search/filter contracts using LINQ.</p></div><a class="btn" asp-action="Create">+ New Contract</a></div>
+<form method="get" class="filter">
+    <label>Start from <input type="date" name="startDate" value="@(Model.StartDate?.ToString("yyyy-MM-dd"))" /></label>
+    <label>End by <input type="date" name="endDate" value="@(Model.EndDate?.ToString("yyyy-MM-dd"))" /></label>
+    <label>Status <select name="status"><option value="">All statuses</option>@foreach (var s in Model.Statuses) { <option value="@s.Value" selected="@s.Selected">@s.Text</option> }</select></label>
+    <button class="btn" type="submit">Filter</button><a asp-action="Index">Clear</a>
+</form>
+<table><thead><tr><th>Client</th><th>Dates</th><th>Status</th><th>Service Level</th><th>Agreement</th><th></th></tr></thead><tbody>
+@foreach (var c in Model.Contracts) { <tr><td>@c.Client?.Name</td><td>@c.StartDate.ToString("dd MMM yyyy") – @c.EndDate.ToString("dd MMM yyyy")</td><td><span class="badge">@c.Status</span></td><td>@c.ServiceLevel</td><td>@if(c.SignedAgreementPath != null){<a asp-action="DownloadAgreement" asp-route-id="@c.ContractId">Download PDF</a>} else {<span>None</span>}</td><td><a asp-action="Details" asp-route-id="@c.ContractId">Details</a></td></tr> }
+</tbody></table>

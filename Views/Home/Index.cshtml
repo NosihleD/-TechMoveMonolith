@@ -1,0 +1,11 @@
+@{ ViewData["Title"] = "Dashboard"; }
+<div class="hero">
+    <h1>TechMove Service Management</h1>
+    <p>Initial monolithic prototype for clients, contracts and international service requests.</p>
+</div>
+<div class="cards">
+    <a class="card" asp-controller="Clients" asp-action="Index"><h2>Clients</h2><p>Manage client name, contact details and region.</p></a>
+    <a class="card" asp-controller="Contracts" asp-action="Index"><h2>Contracts</h2><p>Create contracts, upload signed PDF agreements and filter by date/status.</p></a>
+    <a class="card" asp-controller="ServiceRequests" asp-action="Index"><h2>Service Requests</h2><p>Create requests with live USD→ZAR conversion and workflow rules.</p></a>
+</div>
+<div class="info"><strong>Prototype architecture:</strong> MVC UI + controllers + EF Core data access + business services + local file storage.</div>
