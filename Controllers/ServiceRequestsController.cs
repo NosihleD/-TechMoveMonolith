@@ -1,7 +1,7 @@
+
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.EntityFrameworkCore;
-using TechMove.Data;
+using System.Net.Http.Json;
 using TechMove.Models;
 using TechMove.Services;
 using TechMove.ViewModels;
@@ -10,32 +10,52 @@ namespace TechMove.Controllers;
 
 public class ServiceRequestsController : Controller
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IHttpClientFactory _httpClientFactory;
     private readonly CurrencyService _currency;
-    private readonly ContractWorkflowService _workflow;
     private readonly ILogger<ServiceRequestsController> _logger;
 
     public ServiceRequestsController(
-        ApplicationDbContext context,
+        IHttpClientFactory httpClientFactory,
         CurrencyService currency,
-        ContractWorkflowService workflow,
         ILogger<ServiceRequestsController> logger)
     {
-        _context = context;
+        _httpClientFactory = httpClientFactory;
         _currency = currency;
-        _workflow = workflow;
         _logger = logger;
     }
 
+    private HttpClient GetApiClient() =>
+        _httpClientFactory.CreateClient("TechMoveApi");
+
     public async Task<IActionResult> Index()
     {
-        var requests = await _context.ServiceRequests
-            .Include(s => s.Contract)
-            .ThenInclude(c => c!.Client)
-            .OrderByDescending(s => s.ServiceRequestId)
-            .ToListAsync();
+        var api = GetApiClient();
 
-        return View(requests);
+        var requests = await api.GetFromJsonAsync<List<ServiceRequestApiDto>>(
+            "api/servicerequests");
+
+        var result = (requests ?? new())
+            .Select(s => new ServiceRequest
+            {
+                ServiceRequestId = s.ServiceRequestId,
+                ContractId = s.ContractId,
+                Description = s.Description,
+                CostUsd = s.CostUsd,
+                ExchangeRate = s.ExchangeRate,
+                CostZar = s.CostZar,
+                Status = s.Status,
+                Contract = new Contract
+                {
+                    ContractId = s.Contract?.ContractId ?? s.ContractId,
+                    Status = s.Contract?.Status ?? "Unknown",
+                    Client = new Client
+                    {
+                        Name = s.Contract?.ClientName ?? "Unknown"
+                    }
+                }
+            }).ToList();
+
+        return View(result);
     }
 
     [HttpGet]
@@ -47,19 +67,14 @@ public class ServiceRequestsController : Controller
 
         try
         {
-            vm.ExchangeRate =
-                await _currency.GetUsdToZarRateAsync();
+            vm.ExchangeRate = await _currency.GetUsdToZarRateAsync();
         }
         catch (Exception ex)
         {
-            _logger.LogError(
-                ex,
-                "Unable to retrieve USD to ZAR exchange rate.");
-
+            _logger.LogError(ex, "Unable to retrieve exchange rate.");
             vm.ExchangeRate = 0;
-
             ViewBag.CurrencyError =
-                "The live currency service is currently unavailable. Please try again.";
+                "The live currency service is unavailable. Please try again.";
         }
 
         return View(vm);
@@ -67,135 +82,63 @@ public class ServiceRequestsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create(
-        ServiceRequestCreateViewModel vm)
+    public async Task<IActionResult> Create(ServiceRequestCreateViewModel vm)
     {
-        // CostZar and ExchangeRate are calculated by the server.
-// Do not validate values posted back from the form.
-ModelState.Remove(nameof(vm.CostZar));
-ModelState.Remove(nameof(vm.ExchangeRate));
-        _logger.LogInformation(
-            "Creating Service Request. ContractId={ContractId}, CostUsd={CostUsd}, Description={Description}",
-            vm.ContractId,
-            vm.CostUsd,
-            vm.Description);
+        ModelState.Remove(nameof(vm.CostZar));
+        ModelState.Remove(nameof(vm.ExchangeRate));
 
-        var contract = await _context.Contracts
-            .Include(c => c.Client)
-            .FirstOrDefaultAsync(
-                c => c.ContractId == vm.ContractId);
-
-        if (contract == null)
-        {
-            ModelState.AddModelError(
-                "ContractId",
-                "Please select a valid contract.");
-        }
-
-        // Expired and On Hold contracts cannot create requests.
-        if (contract != null)
-        {
-            try
-            {
-                _workflow.EnsureCanCreateServiceRequest(contract);
-                _logger.LogInformation(
-                    "Contract validation passed. ContractId={ContractId}, Status={Status}",
-                    contract.ContractId,
-                    contract.Status);
-            }
-            catch (InvalidOperationException ex)
-            {
-                _logger.LogWarning(
-                    "Service Request rejected. ContractId={ContractId}, Status={Status}",
-                    contract.ContractId,
-                    contract.Status);
-
-                ModelState.AddModelError(
-                    "",
-                    ex.Message);
-            }
-        }
-
-        // Currency calculation
         if (ModelState.IsValid)
         {
             try
             {
-                vm.ExchangeRate =
-                    await _currency.GetUsdToZarRateAsync();
-
-                vm.CostZar =
-                    CurrencyService.ConvertUsdToZar(
-                        vm.CostUsd,
-                        vm.ExchangeRate);
-
-                _logger.LogInformation(
-                    "Currency calculation successful. Rate={Rate}, CostZar={CostZar}",
-                    vm.ExchangeRate,
-                    vm.CostZar);
+                vm.ExchangeRate = await _currency.GetUsdToZarRateAsync();
+                vm.CostZar = CurrencyService.ConvertUsdToZar(
+                    vm.CostUsd, vm.ExchangeRate);
             }
             catch (Exception ex)
             {
-                _logger.LogError(
-                    ex,
-                    "Currency calculation failed.");
-
-                ModelState.AddModelError(
-                    "",
-                    "Unable to retrieve the current USD to ZAR exchange rate. Please try again.");
+                _logger.LogError(ex, "Currency calculation failed.");
+                ModelState.AddModelError("",
+                    "Unable to retrieve the current exchange rate.");
             }
         }
 
-        // Validation failed
-      if (!ModelState.IsValid)
-{
-    _logger.LogWarning(
-        "Service Request validation failed.");
-
-    foreach (var entry in ModelState)
-    {
-        foreach (var error in entry.Value.Errors)
+        if (!ModelState.IsValid)
         {
-            _logger.LogWarning(
-                "VALIDATION ERROR: Field={Field}, Error={Error}",
-                entry.Key,
-                error.ErrorMessage);
+            await PopulateContractsAsync(vm);
+            return View(vm);
         }
-    }
-
-    await PopulateContractsAsync(vm);
-
-    return View(vm);
-}
-
-        // Create database entity
-        var serviceRequest = new ServiceRequest
-        {
-            ContractId = vm.ContractId,
-            Description = vm.Description
-            ,CostUsd = vm.CostUsd,
-            ExchangeRate = vm.ExchangeRate,
-            CostZar = vm.CostZar,
-            Status = "New"
-        };
 
         try
         {
-            _context.ServiceRequests.Add(serviceRequest);
-            await _context.SaveChangesAsync();
+            var api = GetApiClient();
 
-            _logger.LogInformation(
-                "Service Request saved successfully. ID={ServiceRequestId}",
-                serviceRequest.ServiceRequestId);
+            var response = await api.PostAsJsonAsync(
+                "api/servicerequests",
+                new
+                {
+                    vm.ContractId,
+                    vm.Description,
+                    vm.CostUsd,
+                    vm.ExchangeRate,
+                    vm.CostZar
+                });
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                ModelState.AddModelError("", error);
+                await PopulateContractsAsync(vm);
+                return View(vm);
+            }
 
             return RedirectToAction(nameof(Index));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error saving Service Request.");
-            ModelState.AddModelError(
-                "",
-                "The Service Request could not be saved to the database.");
+            _logger.LogError(ex, "API communication failed.");
+            ModelState.AddModelError("",
+                "Unable to communicate with the API.");
 
             await PopulateContractsAsync(vm);
             return View(vm);
@@ -205,16 +148,43 @@ ModelState.Remove(nameof(vm.ExchangeRate));
     private async Task PopulateContractsAsync(
         ServiceRequestCreateViewModel vm)
     {
-        vm.Contracts = await _context.Contracts
-            .Include(c => c.Client)
-            .OrderBy(c => c.Client!.Name)
-            .ThenBy(c => c.ContractId)
+        var api = GetApiClient();
+
+        var contracts = await api.GetFromJsonAsync<List<ContractApiDto>>(
+            "api/contracts");
+
+        vm.Contracts = (contracts ?? new())
             .Select(c => new SelectListItem
             {
-                Text = $"{c.Client!.Name} — Contract #{c.ContractId} ({c.Status})",
+                Text = $"{c.ClientName} - Contract #{c.ContractId} ({c.Status})",
                 Value = c.ContractId.ToString(),
                 Selected = c.ContractId == vm.ContractId
-            })
-            .ToListAsync();
+            }).ToList();
+    }
+
+    private sealed class ServiceRequestApiDto
+    {
+        public int ServiceRequestId { get; set; }
+        public int ContractId { get; set; }
+        public string Description { get; set; } = "";
+        public decimal CostUsd { get; set; }
+        public decimal ExchangeRate { get; set; }
+        public decimal CostZar { get; set; }
+        public string Status { get; set; } = "";
+        public ContractInfoDto? Contract { get; set; }
+    }
+
+    private sealed class ContractInfoDto
+    {
+        public int ContractId { get; set; }
+        public string Status { get; set; } = "";
+        public string ClientName { get; set; } = "";
+    }
+
+    private sealed class ContractApiDto
+    {
+        public int ContractId { get; set; }
+        public string ClientName { get; set; } = "";
+        public string Status { get; set; } = "";
     }
 }

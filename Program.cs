@@ -1,12 +1,9 @@
-using Microsoft.EntityFrameworkCore;
-using TechMove.Data;
 using TechMove.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllersWithViews();
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
 builder.Services.AddHttpClient<CurrencyService>(client =>
 {
     client.BaseAddress = new Uri(
@@ -15,28 +12,40 @@ builder.Services.AddHttpClient<CurrencyService>(client =>
 
     client.Timeout = TimeSpan.FromSeconds(10);
 });
-builder.Services.AddScoped<CurrencyService>();
+
+builder.Services.AddHttpClient("TechMoveApi", client =>
+{
+    client.BaseAddress = new Uri(
+        builder.Configuration["ApiSettings:BaseUrl"]
+        ?? "http://localhost:5004/");
+
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
+
+builder.Services.AddScoped<FileValidationService>();
 builder.Services.AddScoped<FileValidationService>();
 builder.Services.AddScoped<ContractWorkflowService>();
 
 var app = builder.Build();
 
-if (!app.Environment.IsDevelopment())
+bool isDocker = app.Environment.IsEnvironment("Docker");
+
+if (!app.Environment.IsDevelopment() && !isDocker)
 {
     app.UseExceptionHandler("/Home/Error");
     app.UseHsts();
 }
 
-app.UseHttpsRedirection();
+if (!isDocker)
+{
+    app.UseHttpsRedirection();
+}
+
 app.UseStaticFiles();
 app.UseRouting();
-app.MapControllerRoute(name: "default", pattern: "{controller=Home}/{action=Index}/{id?}");
 
-// Creates the local SQL Server database from the EF Core model for this prototype.
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    await db.Database.EnsureCreatedAsync();
-}
+app.MapControllerRoute(
+    name: "default",
+    pattern: "{controller=Home}/{action=Index}/{id?}");
 
 app.Run();

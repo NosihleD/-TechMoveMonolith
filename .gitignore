@@ -4,3 +4,5 @@ obj/
 *.user
 *.suo
 Uploads/Agreements/*.pdf
+
+.env

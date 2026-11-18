@@ -1,9 +1,11 @@
+
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.20" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.20">
@@ -11,10 +13,16 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
   </ItemGroup>
+
   <ItemGroup>
     <Compile Remove="Tests/**/*.cs" />
     <Content Remove="Tests/**" />
     <EmbeddedResource Remove="Tests/**" />
     <None Remove="Tests/**" />
+
+    <Compile Remove="TechMove.Api/**/*.cs" />
+    <Content Remove="TechMove.Api/**" />
+    <EmbeddedResource Remove="TechMove.Api/**" />
+    <None Remove="TechMove.Api/**" />
   </ItemGroup>
 </Project>
